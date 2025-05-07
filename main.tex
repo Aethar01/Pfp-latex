@@ -8,12 +8,10 @@
 \usepackage{ragged2e}
 \usepackage{siunitx}
 \usepackage{enumerate}
-\usepackage{pgf}
 \usepackage{lmodern}
 \usepackage{import}
 \usepackage{tikz}
 \usepackage{gnuplot-lua-tikz}
-\usepackage{multicol}
 
 % ----------------------------------------------------------------
 \newcommand{\nocontentsline}[3]{}
@@ -47,6 +45,29 @@
   {\normalfont\scshape\justify}}
 \makeatother
 % ----------------------------------------------------------------
+%% Modified from the dipolar magnetic field drawing ---
+%% by Cyril Langlois
+\newcommand{\fieldline}[2]{%
+  {(pow(#1, 2)) * (3 * cos(#2) + cos(3 * #2))},
+  {2 * (pow(#1, 2)) * (sin(#2) + sin(3 * #2))}%
+}
+\NewDocumentCommand\pgfmathsinandcos {m m m}{%
+  \pgfmathsetmacro#1{sin(#3)}%
+  \pgfmathsetmacro#2{cos(#3)}%
+}
+\NewDocumentCommand\LongitudePlane {m m m} {%
+  \pgfmathsinandcos\sinel\cosel{#2} % elevation
+  \pgfmathsinandcos\sint\cost{#3}   % azimuth
+  \tikzset{%
+    #1/.estyle={%
+      cm={\cost, \sint*\sinel, 0, \cosel, (0, 0)}%
+    }
+  }
+}
+\xdefinecolor{jetcolor}{HTML}{000000}
+\xdefinecolor{magnaxis}{HTML}{000000}
+\xdefinecolor{neutronblue}{HTML}{000000}
+%% ---------------------------------------------------
 
 \newdateformat{monthyeardate}{%
   \monthname[\THEMONTH] \THEYEAR}
@@ -71,30 +92,153 @@
 \tableofcontents
 \newpage
 \section{Introduction}
+Pulsars are a type of rapidly rotating neutron star that emit beams of electromagnetic radiation from their magnetic poles. As these beams sweep past earth during their rotation, readings will fluctuate with regularity. These periodic signals offer data about the stars themselves, tests for general relativity \cite{Taylor1981} and even capabilities as time keeping instruments \cite{Backer1984}. \\
+
+This paper aims to provide analysis of an example pulsar signal to demonstrate the use of Discrete Fourier Transform (DFT) with the goal of identifying the dominant frequency components which would indicate the existence of a pulsar signal as well as determining their accuracy.
 \section{Method}
+\subsection{Theoretical Foundation}
+The Fourier Transform, first suggested by Jean-Baptiste-Joseph Fourier in 1822 \cite{Fourier1822}, suggests that any function, discrete or continuous, can be decomposed into a series of sines and is defined like:
+\begin{equation}
+    \hat{f}(\xi) = \int_{-\infty}^{\infty} f(x) e^{-i2\pi\xi x} dx
+    \label{eq:continuous-fourier}
+\end{equation}
+If we evaluate $\hat{f}(\xi)$ at all frequencies $\xi$ we produce the frequency spectrum of the original function. However, performing an integral over a continuous domain $x$ is only analytically possible, not computationally. We can then redefine our fourier transform into the DFT:
+\begin{equation}
+    X_k = \frac{1}{N}\sum_{n=0}^{N-1} x_n e^{-i2\pi \frac{k}{N} n}
+    \label{eq:discrete-fourier}
+\end{equation}
+If we wish, we can rewrite \ref{eq:discrete-fourier} as a summation of sines and cosines, and since its a linear combination we can define 2 amplitude series'.
+\begin{equation}
+    A_k + B_k = \frac{1}{N}\sum_{n=0}^{N-1} x_n \cos\left(\frac{2\pi k n}{N}\right) - \frac{i}{N} \sum_{n=0}^{N-1} x_n \sin\left(\frac{2\pi k n}{N}\right)
+    \label{eq:discrete-fourier-sines-cosines}
+\end{equation}
+
+\subsection{Implementation Details}
+In order to implement the DFT, we will use the Goertzel Algorithm \cite{Goertzel1958} which, while significantly slower than any Fast Fourier Transform algorithm \cite{Cooley1965}, is very simple: \\
+\fbox{\parbox{\textwidth}{
+    Geortzel Algorithm
+    \begin{equation*}
+        \label{eq:goertzel-algorithm}
+        U_{N+1} = U_{N+2} = 0,
+    \end{equation*}
+    \begin{equation*}
+        U_N = x_n + 2\cos\left(\frac{2\pi k}{N}\right)U_{n+1} - U_{n+2}, \quad \text{for } n=N, N-1 \dots 1,
+    \end{equation*}
+    \begin{equation*}
+        A_k = \frac{1}{N}\left[U_1 - U_2 \cos\left(\frac{2\pi k}{N}\right)\right],
+    \end{equation*}
+    \begin{equation*}
+        B_k = \frac{-i}{N}\left[U_2 \cos\left(\frac{2\pi k}{N}\right)\right]
+    \end{equation*}
+    \centering
+    Repeat for all $k$ in $0, 1, 2 \dots N - 1$
+}}
+
+To test the algorithm, we generate a synthetic signal with a known cosine and sine component and plot the results as seen in \ref{fig:ft_synthetic}. 
+\begin{figure}[ht]
+    \centering
+    \include{plots/ft_synthetic.tex}
+    \caption{Fourier Transform showing the frequency series vs power of a synthetic signal of the form $f(t) = A\cos(2\pi k_1 t / N) + B\sin(2\pi k_2 t / N)$ where $k_1 = 23$ and $k_2 = 67$. The dashed line is the Nyquist frequency and the DC frequency (0Hz) has been removed.}
+    \label{fig:ft_synthetic}
+\end{figure}
+
 \section{Results}
+Performing the DFT on the dataset yields the spectrum shown in \ref{fig:ft}. Peak $k_2$ has the highest signal to noise ratio (SNR), shown in Table \ref{tab:ft_results}, and is the fundamental frequency $f = 59.570 \pm 0.488$. Harmonics are seen at $k_1 = 30.273 \pm 0.488$, $k_3 = 89.844 \pm 0.488$, $k_5 = 121.094 \pm 0.488$ which correspond to $1/2f$, $3/2f$ and $2f$ respectively. Additionally, the other most prominent peak is at $k_4 = 99.609 \pm 0.488$ which would be a harmonic of $5/3f$. \\
+
+With a fundamental frequency of $59.570 \pm 0.488$ the time period of the rotation pulsar is $0.01679 \pm 0.00014$s. Phase binning at this frequency produces the phase-binned intensity curve shown in Figure \ref{fig:phasebins}.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{ccccc}
+        \hline
+        Peak & Frequency [Hz] & Expected Harmonic [Hz] & Deviation [Hz] & SNR \\
+        \hline
+        $k_1$ & $30.273 \pm 0.488$ & $1/2f(29.785 \pm 0.244)$ & $+0.488$ & $14.8 \pm 4.0$ \\
+        \hline
+        $k_2$ & $59.570 \pm 0.488$ & $f$ & N/A & $50.9 \pm 7.2$ \\
+        \hline
+        $k_3$ & $89.844 \pm 0.488$ & $3/2f(89.355 \pm 0.732)$ & $+0.489$ & $13.1 \pm 3.8$ \\
+        \hline
+        $k_4$ & $99.609 \pm 0.488$ & $5/3f(99.283 \pm 0.813)$ & $+0.326$ & $9.6 \pm 3.3$ \\
+        \hline
+        $k_5$ & $121.094 \pm 0.488$ & $2f(119.14 \pm 0.976)$ & $+1.954$ & $7.9 \pm 3.0$ \\
+        \hline
+    \end{tabular}
+    \caption{$k_n$ from Figure \ref{fig:ft} of the five highest SNR peaks. SNR is the signal to noise ratio.}
+    \label{tab:ft_results}
+\end{table}
+
 \begin{figure}[ht]
     \centering
     \include{plots/ft.tex}
-    \caption{Fourier Transform}
+    \caption{Fourier Transform of the dataset showing the frequency series vs power. The dashed line is the Nyquist frequency and the DC frequency (0Hz) has been removed.}
     \label{fig:ft}
 \end{figure}
 
 \begin{figure}[ht]
     \centering
-    \include{plots/reconstruction.tex}
-    \caption{Reconstruction of the time series from the aplitudese determined by the Fourier Transform}
-    \label{fig:reconstruction}
+    \include{plots/phasebins.tex}
+    \caption{Phase binned intensity curve of the Fourier Transform at 59.570 Hz with 11 bins. Count is in the same arbitrary scale as the dataset and represents the intensity of the detected signal. Two phase cycles are shown for clarity and $1\sigma$ error bars are shown. The de-trended sum over all bins in a single phase is $-2.094$.}
+    \label{fig:phasebins}
+\end{figure}
+\section{Discussion}
+The aim of this paper was to demonstrate the use of the DFT to analyse a pulsar signal and to determine both whether the signal is a pulsar of regular rotation and also what its frequency and time period are.
+
+\subsection{Techniques}
+The techniques used for the analysis of the signal are, Discrete Fourier Transform (DFT) implemented in the Goertzel Algorithm, phase binning de-trending, and synthetic data validation. \\
+
+DFT allows us to determine the frequency components of the signal and their amplitude, converting the time domain signal into a frequency domain signal. In this case it was implemented using the Geortzel Algorithm which is a relatively simple implementation of the DFT that is easily programmable. Additionally the Geortzel Algorithm has a computational complexity of $O(KNM)$ vs that of the fast fourier transform (FFT) of $O(KN\log(N))$ where $K$ is the "cost of operation" or how expensive a single step is, $M$ is the number of DFT terms (eg. The number of frequencies) and $N$ is naturally the number of values in the data set. Generally then it is the case that the Geortzel Algorithm is faster if:
+\begin{equation}
+    M \geq \frac{5N_2}{6N}\log_2(N_2)
+    \label{eq:geortzel-vs-fft}
+\end{equation}
+where $N_2$ is the $N$ rounded up to the nearest power of 2 (since the Radix-2 FFT algorithm is most efficient when $N$ is a power of 2). For our data with 256 entries, discounting the cost of operation for both methods, the Geortzel Algorithm is only faster if $M \leq 2$. So in our case, assuming both implementations are equally costly and if we want to calculate the DFT for all 256 DFT terms, FFT is faster. Despite this, since there are only 256 entries the scaling benefits of FFT are not significant enough to warrant its use, especially since the algorithm is only run once and not in an ongoing manner. \\
+
+Phase binning is a technique used to align signal values based on phase rather than time, which is especially useful when analysing periodic signals. The signal is folded modulo the suspected period, and then averaged into bins based on phase. This emphasizes the periodic structure of the signal while reducing noise. The resulting binned profile is more interpretable, particularly when combined with de-trending. \\
+
+De-trending is a method for removing common trends from the data set leaving only the variation in the signal itself. This is done by subtracting a least-squares-fit polynomial from the data. In our analysis, we use a 0th-degree polynomial (i.e., the mean), effectively centering the data around zero and emphasizing variations relative to the average. Higher-degree polynomials could be used for more complex trends, but were unnecessary for our purposes. \\
+
+Synthetic data validation involves generating artificial datasets with known properties (e.g., sinusoidal signals) and analysing them using the same functions as the real data. This allows us to verify the accuracy and correctness of our techniques. By comparing the recovered frequencies to those originally specified we can determine if the programs output is correct and or useful.
+
+\subsection{Comments on Results}
+The results for the Discrete Fourier Transform of the dataset do suggest that the signal is a pulsar of regular rotation. And after discounting all frequencies above the Nyquist Frequency (since the frequency space is mirrored about this point and can be considered non-real negative frequencies) and removing the DC (0Hz) frequency, the most prominent frequency, and therefore the frequency most likely to be the fundamental frequency is $59.570 \pm 0.488$Hz with a time period of $0.01679 \pm 0.00014$s. These values are consistent with the measured pulsar being just slower than a millisecond pulsar (pulsars with a time period of less than 10ms). \\
+
+For the most part, the other peaks are harmonics of $1/2f$, $3/2f$ and $2f$. A physical interpretation for the $1/2f$ and $3/2f$ harmonic could be that, due to the beams of electromagnetic radiation that are spewed from both of its magnetic poles that creates a lighthouse effect (see Figure \ref{fig:pulsar}), the rotation axis of the pulsar could not align with its magnetic poles and we could then observe the beam at full intensity only once every two phase cycles. In this case we would observe a less intense beam every other rotation creating the $1/2f$ harmonic we see. This can be seen in Figure \ref{fig:phasebins_half}, there are 2 clear peaks per phase, one intense and one less intense. This backs up this interpretation that the pulsar is "wobbling" or processes as it rotates relative to earth. \\
+
+The $5/3f$ harmonic however is the only harmonic that is not a multiple of the fundamental frequency. One possible interpretation is that, due to its closeness to 100Hz, it could be noise from monitoring equipment or perhaps it could be the fundamental frequency of another pulsar and the main pulsar we observe could be part of a binary system.
+
+\begin{figure}[ht]
+    \centering
+    \include{plots/phasebins_half.tex}
+    \caption{Phase binned intensity curve of the Fourier Transform at 30.273 Hz with 21 bins. Count is in the same arbitrary scale as the dataset and represents the intensity of the detected signal. Two phase cycles are shown for clarity and $1\sigma$ error bars are shown.}
+    \label{fig:phasebins_half}
 \end{figure}
 
 \begin{figure}[ht]
     \centering
-    \include{plots/phasebins.tex}
-    \caption{Phase binning of the Fourier Transform}
-    \label{fig:phasebins}
+    \include{pulsar.tex}
+    \caption{A diagram of a pulsar with magnetic poles misaligned with the rotation axis. Rotation will create a "lighthouse" effect as the EM emission beams sweep past the earth. Sourced from \cite{knierim_tikz_assortment}.}
+    \label{fig:pulsar}
 \end{figure}
-\section{Discussion}
+
 \section{Conclusion}
+In this paper, we demonstrated the use of the Discrete Fourier Transform (DFT) for the analysis of pulsar signals using the Geortzel Algorithm. By applying this to the intensity time data in the dataset we successfully identified the fundamental frequency and its harmonics, confirming the presence of a regularly rotating pulsar. The fundamental frequency is detected at $59.570 \pm 0.488$ Hz, with a period of $0.01679 \pm 0.00014$s and aligns with the expected properties of a slightly slower rotating millisecond pulsar. This analysis also revealed the presence of harmonic components, including $1/2f$, $3/2f$ and $2f$. The presence of the $1/2f$ and $3/2f$ harmonics support the interpretation of non-aligned processing pulsar, however the presence of the $5/3f$ harmonic may not be a harmonic at all and instead could be noise or the influence of a secondary signal source. \\
+
+This paper highlights the effectiveness of the DFT as a tool for analysing pulsars, despite the computation limitations of the Geortzel Algorithm. Additionally, the use of phase binning and de-trending techniques can further enhance the interpretability of the results, providing more accurate analysis of pulsar signals. \\
+
+Future work could include the implementation of the FFT algorithm, which is more efficient for large datasets and would allow for the analysis of pulsar signals with a time period of less than a millisecond with greater accuracy. Additionally, the dataset used only includes data at a single, unknown, energy band; taking readings at different energy bands and using that to inform analysis could reveal additional relationships as well as clarifying observations like the $5/3f$ peak.
+
+\appendix
+\stoptoc
+\section{Additional Uses of Integration, Runge-Katta and Fourier Transforms}
+
+\subsection*{N-body Simulations}
+In computational astrophysics, Hernandez and Bertschinger \cite{Hernandez2018} note that calculating long-term evolutions (eg. galaxy formation and planetary orbits) have no known analytical solutions so researchers use various numerical solutions. Hernandez and Berschinger propose a method of time-symmetric integration to predict complex dynamical behaviour in astrophysics.
+
+\subsection*{The Magnetocaloric Effect}
+In this paper Moore, Skokov, Liu and Gutfleisch \cite{Moore2012} present a method of numerically integrating measured entropy or temperature data to evaluate the magnetocaloric effect in a magnetic cooling cycle.
+
+\resumetoc
 
 \bibliographystyle{unsrtdin}
 \bibliography{citations}
