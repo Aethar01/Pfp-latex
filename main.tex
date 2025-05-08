@@ -79,15 +79,16 @@
 \hbadness=10000
 \setcounter{tocdepth}{3}
 
-\title{Fourier Analysis of Pulsar Data}
+\title{Application of Discrete Fourier Analysis of Pulsar Data}
 \author[Elliott Ashby]{Elliott Ashby \\ Physics and Astronomy \\ University of Southampton}
 \date{\monthyeardate\today}
 % ----------------------------------------------------------------
 
 \begin{document}
 \begin{abstract}
+This paper explores the identification of pulsar signals through Fourier analysis by applying the Discrete Fourier Transform (DFT) to time-domain intensity data. By mapping temporal signal variations into frequency space, dominant periodic components of pulsar rotation can be extracted. We implement the DFT using the Goertzel algorithm and apply phase binning and de-trending techniques to increase interpretability. The analysis reveals a fundamental frequency of 59.570 ± 0.488 Hz, corresponding to a pulsar period of 0.01679 ± 0.00014s. Harmonics at 1/2f, 3/2f, and 2f support the interpretation of a rotating neutron star with a misaligned magnetic axis. These results demonstrate the utility of DFT-based frequency analysis in identifying and characterizing pulsar signals from observational data.
 \end{abstract}
-\vspace*{-2cm}
+% \vspace*{-2cm}
 \maketitle
 \tableofcontents
 \newpage
@@ -102,14 +103,17 @@ The Fourier Transform, first suggested by Jean-Baptiste-Joseph Fourier in 1822 \
     \hat{f}(\xi) = \int_{-\infty}^{\infty} f(x) e^{-i2\pi\xi x} dx
     \label{eq:continuous-fourier}
 \end{equation}
-If we evaluate $\hat{f}(\xi)$ at all frequencies $\xi$ we produce the frequency spectrum of the original function. However, performing an integral over a continuous domain $x$ is only analytically possible, not computationally. We can then redefine our fourier transform into the DFT:
+If we evaluate $\hat{f}(\xi)$ at all frequencies $\xi$ we produce the frequency spectrum of the original function. However, performing an integral over a continuous domain $x$ is only analytically possible, not computationally. We can then redefine our Fourier transform into the DFT:
 \begin{equation}
     X_k = \frac{1}{N}\sum_{n=0}^{N-1} x_n e^{-i2\pi \frac{k}{N} n}
     \label{eq:discrete-fourier}
 \end{equation}
 If we wish, we can rewrite \ref{eq:discrete-fourier} as a summation of sines and cosines, and since its a linear combination we can define 2 amplitude series'.
 \begin{equation}
-    A_k + B_k = \frac{1}{N}\sum_{n=0}^{N-1} x_n \cos\left(\frac{2\pi k n}{N}\right) - \frac{i}{N} \sum_{n=0}^{N-1} x_n \sin\left(\frac{2\pi k n}{N}\right)
+    \begin{aligned}
+        A_k &= \frac{1}{N}\sum_{n=0}^{N-1} x_n \cos\left(\frac{2\pi k n}{N}\right) \\
+        B_k &=  - \frac{i}{N}\sum_{n=0}^{N-1} x_n \sin\left(\frac{2\pi k n}{N}\right)
+    \end{aligned}
     \label{eq:discrete-fourier-sines-cosines}
 \end{equation}
 
@@ -201,7 +205,7 @@ De-trending is a method for removing common trends from the data set leaving onl
 Synthetic data validation involves generating artificial datasets with known properties (e.g., sinusoidal signals) and analysing them using the same functions as the real data. This allows us to verify the accuracy and correctness of our techniques. By comparing the recovered frequencies to those originally specified we can determine if the programs output is correct and or useful.
 
 \subsection{Comments on Results}
-The results for the Discrete Fourier Transform of the dataset do suggest that the signal is a pulsar of regular rotation. And after discounting all frequencies above the Nyquist Frequency (since the frequency space is mirrored about this point and can be considered non-real negative frequencies) and removing the DC (0Hz) frequency, the most prominent frequency, and therefore the frequency most likely to be the fundamental frequency is $59.570 \pm 0.488$Hz with a time period of $0.01679 \pm 0.00014$s. These values are consistent with the measured pulsar being just slower than a millisecond pulsar (pulsars with a time period of less than 10ms). \\
+The results for the Discrete Fourier Transform of the dataset do suggest that the signal is a pulsar of regular rotation. And after discounting all frequencies above the Nyquist Frequency (since the frequency space is mirrored about this point and can be considered non-real negative frequencies) and removing the DC (0Hz) frequency, the most prominent frequency, and therefore the frequency most likely to be the fundamental frequency is $59.570 \pm 0.488$Hz with a time period of $0.01679 \pm 0.00014$s. The other candidate for the fundamental frequency is the peak at $30.273 \pm 0.488$Hz, but phase binning at this frequency reveals 2 peaks per pulse in Figure \ref{fig:phasebins_half}. These values are consistent with the measured pulsar being just slower than a millisecond pulsar (pulsars with a time period of less than 10ms). \\
 
 For the most part, the other peaks are harmonics of $1/2f$, $3/2f$ and $2f$. A physical interpretation for the $1/2f$ and $3/2f$ harmonic could be that, due to the beams of electromagnetic radiation that are spewed from both of its magnetic poles that creates a lighthouse effect (see Figure \ref{fig:pulsar}), the rotation axis of the pulsar could not align with its magnetic poles and we could then observe the beam at full intensity only once every two phase cycles. In this case we would observe a less intense beam every other rotation creating the $1/2f$ harmonic we see. This can be seen in Figure \ref{fig:phasebins_half}, there are 2 clear peaks per phase, one intense and one less intense. This backs up this interpretation that the pulsar is "wobbling" or processes as it rotates relative to earth. \\
 
@@ -237,6 +241,54 @@ In computational astrophysics, Hernandez and Bertschinger \cite{Hernandez2018} n
 
 \subsection*{The Magnetocaloric Effect}
 In this paper Moore, Skokov, Liu and Gutfleisch \cite{Moore2012} present a method of numerically integrating measured entropy or temperature data to evaluate the magnetocaloric effect in a magnetic cooling cycle.
+
+\subsection*{A General Quantum Algorithm for Numerical Integration}
+In this paper Shu, Shan, Xu, Zhao and Wang \cite{Shu2024} present a general quantum algorithm for numerical integration. Typical methods of classical integration algorithms are at most computational complexity of $O(N)$ but by quantum encoding of integrable functions through polynomial approximation and constructing a quantum oracle to discretise and mark locations the integration area the computational complexity can be reduced to $O(\sqrt{N})$.
+
+\subsection*{Effective Force on the mast of Racing Sail-boats}
+Since wind forces vary as a function of distance from the deck on sails, it is required to calculate the tensile strength needed for the cables holding the mast. Since the functions required to be integrated are difficult to analytically solve, numerical methods like the trapezoidal rule and Simpsons 1/3 rule must be used. \cite{chapra_canale_case_studies}
+
+\subsection*{Coulomb Counting}
+The available capacity of a battery can be determined by integration of the current drawn from the battery over time. However, since other factors like temperature and current direction can influence the capacity of batteries, numerical integration methods are required. \cite{Stefanopoulou2015}
+
+\subsection*{Industrial Instrumentation}
+In industrial instrumentation, the calculation of the accumulation of some fluid from a measured flow rate is a common task. Often times this can implemented mechanically through an odometer-style device which uses rotational elements and a ratchet mechanism to mechanically integrate the movement of the rotational input. \cite{control2025}
+
+\subsection*{Runge-Kutta Methods for Robot Arm $\&$ Initial Value Problem}
+Senthilkumar et al. \cite{Senthilkumar2013} present a Runge-Kutta(5,5) method for solving the robot arm and initial value problem. Robot arms equations of motions are often complex ODEs due to the many different variables involved in physical processes so accurate numerical methods like using Runge-Kutta reduce the error in predicting the arm's position, velocity and acceleration over time.
+
+\subsection*{Streamline and Streamtube Visualization}
+In fluid dynamics simulations, the visualization of flow characteristics such as streamlines and streamtubes is crucial for understanding complex fluid behaviors. The construction of these visual elements often requires efficient numerical methods for tracing particle paths over time. Ueng et al. \cite{Ueng1995} introduce a specialized Runge-Kutta integration method to enhance the speed and accuracy of particle path tracing, making it significantly faster than traditional methods like Runge-Kutta (2,4) and (4,4). Their approach, designed for unstructured grids, is especially beneficial when working with large-scale fluid simulations that require the visualization of intricate flow patterns.
+
+\subsection*{Numerical Solution of Nonlinear Schrodinger Approaches Using the Fourth-Order Runge-Kutta Method for Predicting Stock Pricing}
+In this paper, Kartono et al. \cite{Kartono2020} present a numerical solution of non-linear Schrödinger approaches to stock pricing using the Fourth-Order Runge-Kutta. The method is based on the idea of using the Runge-Kutta method to approximate the solution of the non-linear Schrödinger equation, which is a widely used method in finance for modelling stock prices.
+
+\subsection*{The Application of Runge Kutta Fourth Order Method in SIR Model for simulation of COVID-19 Cases}
+In this paper, Iskandar and Tiong \cite{Iskandar2022} use Runge-Kutta numerical methods to approximate covid cases over time. This approach ensures accurate integration of the ODEs, accounting for time-dependent variables like infection rates and quarantine efficacy. Real-world changes are accounted for and provides reliable forecasts for outbreak progression.
+
+\subsection*{Operational Orbit Determination}
+Space mission engineers propagate orbits using Runge–Kutta integrators. For example, Artemis lunar orbit determination employs a high-order Runge–Kutta (7/8) integrator to propagate the spacecraft state between manoeuvres. \cite{Wooward2011}
+
+\subsection*{Autonomous Vehicle Technologies for Small Fixed-Wing UAVs}
+In small-UAV guidance systems, it's common to use RK4 integration for state propagation. In these designs, the UAV's kinematic equations are integrated in real-time using a 4th-order Runge–Kutta method. This approach allows the autopilot to generate feasible, time-efficient flight paths directly onboard the aircraft. \cite{Beard2005}
+
+\subsection*{Medical Image Reconstruction with the FFT}
+This chapter in GPU Gems 2 \cite{Sumanaweera2005} introduces the use of the FFT to reconstruct medical images. The FFT is particularly useful for medical imaging where the data is often complex and contains many redundant information. Utilising the GPU and CUDA allows the FFT to be processed in parallel allowing for a massive speed up.
+
+\subsection*{Fourier Transform Spectroscopy}
+In this paper, Paschotta \cite{Paschotta2019} lays out The technique involves sending electromagnetic radiation, typically infrared light, into a Michelson interferometer and measuring the output power as the mirror moves, changing the arm length. For monochromatic light, the power oscillates sinusoidally with arm length, while polychromatic light produces a complex interferogram. Applying a Fourier transform to this data reveals the optical spectrum, showing the power distribution across wavelengths, though spectral phase information is not obtained.
+
+\subsection*{Full-field Brillouin microscopy based on an imaging Fourier-transform spectrometer}
+In this paper, Bevilacqua and Prevedel \cite{Bevilacqua2025} present a new imaging Fourier-transform spectrometer for enhanced Brilllouin microscopy allowing for three-dimensional, all-optical and non-contact techniques to assess the mechanical properties of biological samples.
+
+\subsection*{On discrete cosine transform}
+In this paper, Zhou \cite{Zhou2011} describes the discrete cosine transform (DCT) developed originally by Nasir Ahmed, which is a lossy compression algorithm that relies on the discrete Fourier transform to pick out data of high importance allowing the algorithm to preserve data fidelity while minimizing file size. This is used widely in medical imaging systems like MRI and CT scans where data output is very large but all scans should be kept.
+
+\subsection*{Bearing vibration detection and analysis using enhanced fast Fourier transform algorithm}
+In this paper, Lin et al. \cite{Lin2016} look at bearing defects that create irregular, cyclostationary vibration pulses, often caused by roller slippage, and determine whether smarter Fast Fourier Transforms can be used to predict breakages for predictive maintenance. It works by modelling how major frequencies and spectral leakage interact, helping pinpoint faults accurately.
+
+\subsection*{Real Time Pitch Detection For Vocal Tuning Using FFT Algorithm And Spectrogram}
+In this paper, Noak and Darmawan \cite{Noak2020} present a real-time pitch detection algorithm using the Fast Fourier Transform (FFT) and spectrogram. The FFT is used to analyse the frequency content of the audio signal, while the spectrogram is used to visualize the frequency content over time. This allows for real-time pitch detection and tuning, which is crucial for applications like music production and audio processing.
 
 \resumetoc
 
